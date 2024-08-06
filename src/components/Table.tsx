@@ -80,7 +80,7 @@ const Table: React.FC<TableProps> = ({
     }));
   };
 
-  const applyFilter = (column: string) => {
+  const applyFilter = () => {
     handleClose();
   };
 
@@ -182,10 +182,15 @@ const Table: React.FC<TableProps> = ({
                     <TextField
                       label={`Filter by ${columnLabels[key]}`}
                       value={searchValues[key] || ""}
-                      onChange={(event) => handleFilterChange(key, event)}
+                      onChange={(event) =>
+                        handleFilterChange(
+                          key,
+                          event as React.ChangeEvent<HTMLInputElement>
+                        )
+                      }
                       onKeyPress={(e) => {
                         if (e.key === "Enter") {
-                          applyFilter(key);
+                          applyFilter();
                         }
                       }}
                       InputProps={{
@@ -193,7 +198,7 @@ const Table: React.FC<TableProps> = ({
                           <InputAdornment position="end">
                             <IconButton
                               aria-label={`apply filter for ${columnLabels[key]}`}
-                              onClick={() => applyFilter(key)}
+                              onClick={() => applyFilter()}
                               sx={{ color: "#3f51b5" }}
                             >
                               <SearchIcon />
