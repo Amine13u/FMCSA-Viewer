@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Table as MuiTable,
   TableBody,
@@ -8,9 +8,17 @@ import {
   TableRow,
   Paper,
   CircularProgress,
-  TableSortLabel,
+  IconButton,
+  TextField,
+  InputAdornment,
+  Menu,
+  MenuItem,
+  Tooltip,
 } from "@mui/material";
-import { format, isValid, parseISO } from "date-fns";
+import SearchIcon from "@mui/icons-material/Search";
+import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
+import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
+import { format, parseISO, isValid } from "date-fns";
 
 interface RowData {
   [key: string]: string;
@@ -21,9 +29,19 @@ interface TableProps {
   loading: boolean;
   columnLabels: { [key: string]: string };
   onSort: (column: string, direction: "asc" | "desc") => void;
-  sortColumn: string;
+  sortColumn: string | null;
   sortDirection: "asc" | "desc";
 }
+
+const formatDate = (dateString: string) => {
+  try {
+    const date = parseISO(dateString);
+    return isValid(date) ? format(date, "MMM d, yyyy") : dateString;
+  } catch (error) {
+    console.error("Error formatting date:", error);
+    return dateString;
+  }
+};
 
 const Table: React.FC<TableProps> = ({
   data,
@@ -33,16 +51,59 @@ const Table: React.FC<TableProps> = ({
   sortColumn,
   sortDirection,
 }) => {
-  const handleSort = (column: string) => {
-    const newDirection =
-      sortColumn === column && sortDirection === "asc" ? "desc" : "asc";
-    onSort(column, newDirection);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [activeColumn, setActiveColumn] = useState<string | null>(null);
+  const [searchValues, setSearchValues] = useState<{ [key: string]: string }>(
+    {}
+  );
+
+  const handleClick = (
+    event: React.MouseEvent<HTMLButtonElement>,
+    column: string
+  ) => {
+    setAnchorEl(event.currentTarget);
+    setActiveColumn(column);
   };
 
-  const sortedData = React.useMemo(() => {
-    return [...data].sort((a, b) => {
-      if (!sortColumn) return 0;
+  const handleClose = () => {
+    setAnchorEl(null);
+    setActiveColumn(null);
+  };
 
+  const handleFilterChange = (
+    column: string,
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    setSearchValues((prev) => ({
+      ...prev,
+      [column]: event.target.value,
+    }));
+  };
+
+  const applyFilter = (column: string) => {
+    handleClose();
+  };
+
+  const handleSort = (column: string) => {
+    const isAscending = sortColumn === column && sortDirection === "asc";
+    onSort(column, isAscending ? "desc" : "asc");
+  };
+
+  const filteredData = data.filter((row) =>
+    Object.keys(row).every(
+      (key) =>
+        !searchValues[key] ||
+        row[key]
+          ?.toString()
+          .toLowerCase()
+          .includes(searchValues[key].toLowerCase())
+    )
+  );
+
+  const sortedData = React.useMemo(() => {
+    if (!sortColumn) return filteredData;
+
+    return [...filteredData].sort((a, b) => {
       const aValue = (a[sortColumn] || "").toString();
       const bValue = (b[sortColumn] || "").toString();
 
@@ -52,17 +113,7 @@ const Table: React.FC<TableProps> = ({
         return bValue.localeCompare(aValue);
       }
     });
-  }, [data, sortColumn, sortDirection]);
-
-  const formatDate = (dateString: string) => {
-    try {
-      const parsedDate = parseISO(dateString);
-      return isValid(parsedDate) ? format(parsedDate, "MM/dd/yyyy") : "";
-    } catch (error) {
-      console.error("Error formatting date:", error);
-      return "Invalid Date";
-    }
-  };
+  }, [filteredData, sortColumn, sortDirection]);
 
   return (
     <TableContainer
@@ -86,21 +137,99 @@ const Table: React.FC<TableProps> = ({
                   fontWeight: 600,
                   textAlign: "center",
                   padding: "8px",
+                  position: "relative",
                 }}
               >
-                <TableSortLabel
-                  active={sortColumn === key}
-                  direction={sortColumn === key ? sortDirection : "asc"}
-                  onClick={() => handleSort(key)}
-                  sx={{
-                    color: "#ffffff",
-                    "&.MuiTableSortLabel-active .MuiTableSortLabel-icon": {
-                      color: "#ffffff",
-                    },
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
                   }}
                 >
-                  {columnLabels[key]}
-                </TableSortLabel>
+                  <span>{columnLabels[key]}</span>
+                  <div>
+                    <Tooltip title="Filter">
+                      <IconButton
+                        aria-label={`filter by ${columnLabels[key]}`}
+                        onClick={(event) => handleClick(event, key)}
+                        sx={{ color: "#ffffff", marginLeft: "8px" }}
+                      >
+                        <SearchIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Sort">
+                      <IconButton
+                        aria-label={`sort by ${columnLabels[key]}`}
+                        onClick={() => handleSort(key)}
+                        sx={{ color: "#ffffff", marginLeft: "8px" }}
+                      >
+                        {sortColumn === key && sortDirection === "asc" ? (
+                          <ArrowUpwardIcon />
+                        ) : (
+                          <ArrowDownwardIcon />
+                        )}
+                      </IconButton>
+                    </Tooltip>
+                  </div>
+                </div>
+                <Menu
+                  anchorEl={anchorEl}
+                  open={Boolean(anchorEl) && activeColumn === key}
+                  onClose={handleClose}
+                >
+                  <MenuItem>
+                    <TextField
+                      label={`Filter by ${columnLabels[key]}`}
+                      value={searchValues[key] || ""}
+                      onChange={(event) => handleFilterChange(key, event)}
+                      onKeyPress={(e) => {
+                        if (e.key === "Enter") {
+                          applyFilter(key);
+                        }
+                      }}
+                      InputProps={{
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton
+                              aria-label={`apply filter for ${columnLabels[key]}`}
+                              onClick={() => applyFilter(key)}
+                              sx={{ color: "#3f51b5" }}
+                            >
+                              <SearchIcon />
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      }}
+                      variant="outlined"
+                      margin="normal"
+                      sx={{
+                        width: "200px",
+                        backgroundColor: "#ffffff",
+                        borderRadius: "0.25rem",
+                        "& .MuiOutlinedInput-root": {
+                          borderRadius: "0.25rem",
+                        },
+                        "& .MuiInputLabel-root": {
+                          color: "#757575",
+                        },
+                        "& .MuiInputBase-input": {
+                          padding: "0.5rem",
+                        },
+                        "& .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#e0e0e0",
+                        },
+                        "&:hover .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#3f51b5",
+                        },
+                        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#3f51b5",
+                        },
+                      }}
+                      aria-label={`Filter by ${columnLabels[key]}`}
+                    />
+                  </MenuItem>
+                </Menu>
               </TableCell>
             ))}
           </TableRow>
@@ -132,9 +261,11 @@ const Table: React.FC<TableProps> = ({
                   },
                 }}
               >
-                {Object.entries(row).map(([key, value], i) => (
+                {Object.values(row).map((value, i) => (
                   <TableCell key={i} sx={{ textAlign: "center" }}>
-                    {columnLabels[key]?.includes("Date")
+                    {columnLabels[Object.keys(row)[i]]
+                      .toLowerCase()
+                      .includes("date")
                       ? formatDate(value)
                       : value}
                   </TableCell>
