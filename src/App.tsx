@@ -33,6 +33,8 @@ const App: React.FC = () => {
   const [page, setPage] = useState<number>(0);
   const [rowsPerPage, setRowsPerPage] = useState<number>(CHUNK_SIZE);
   const [error, setError] = useState<string | null>(null);
+  const [sortColumn, setSortColumn] = useState<string>("");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   const fetchData = useCallback(async (page: number, rowsPerPage: number) => {
     setLoading(true);
@@ -89,6 +91,11 @@ const App: React.FC = () => {
     setPage(0);
   };
 
+  const handleSort = (column: string, direction: "asc" | "desc") => {
+    setSortColumn(column);
+    setSortDirection(direction);
+  };
+
   const handleChangePage = (
     _: React.MouseEvent<HTMLButtonElement> | null,
     newPage: number
@@ -115,6 +122,9 @@ const App: React.FC = () => {
         data={filteredData}
         loading={loading}
         columnLabels={columnLabels}
+        onSort={handleSort}
+        sortColumn={sortColumn}
+        sortDirection={sortDirection}
       />
       <Pagination
         count={100000}
