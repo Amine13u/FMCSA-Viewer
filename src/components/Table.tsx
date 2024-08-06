@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   Table as MuiTable,
   TableBody,
@@ -10,6 +10,7 @@ import {
   CircularProgress,
   TableSortLabel,
 } from "@mui/material";
+import { format, isValid, parseISO } from "date-fns";
 
 interface RowData {
   [key: string]: string;
@@ -52,6 +53,16 @@ const Table: React.FC<TableProps> = ({
       }
     });
   }, [data, sortColumn, sortDirection]);
+
+  const formatDate = (dateString: string) => {
+    try {
+      const parsedDate = parseISO(dateString);
+      return isValid(parsedDate) ? format(parsedDate, "MM/dd/yyyy") : "";
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return "Invalid Date";
+    }
+  };
 
   return (
     <TableContainer
@@ -121,9 +132,11 @@ const Table: React.FC<TableProps> = ({
                   },
                 }}
               >
-                {Object.values(row).map((value, i) => (
+                {Object.entries(row).map(([key, value], i) => (
                   <TableCell key={i} sx={{ textAlign: "center" }}>
-                    {value}
+                    {columnLabels[key]?.includes("Date")
+                      ? formatDate(value)
+                      : value}
                   </TableCell>
                 ))}
               </TableRow>
